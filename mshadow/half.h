@@ -12,6 +12,12 @@
 #if (MSHADOW_USE_CUDA && CUDA_VERSION >= 7050 && defined(__CUDA_ARCH__))
   #define MSHADOW_CUDA_HALF 1
   #include <cuda_fp16.h>
+  /*! \brief __half2float_warp */
+  __host__ __device__ float __half2float_warp(const volatile __half& h) { /* NOLINT(*) */
+    __half val;
+    val.x = h.x;
+    return __half2float(val);
+  }
 #else
   #define MSHADOW_CUDA_HALF 0
 #endif
@@ -35,7 +41,11 @@ namespace half {
 
 #define MSHADOW_HALF_ASSIGNOP(AOP, OP)                                    \
   template<typename T>                                                    \
-  MSHADOW_XINLINE half_t operator AOP (T a) {                             \
+  MSHADOW_XINLINE half_t operator AOP (const T& a) {                      \
+    return *this = half_t(float(*this) OP float(a));  /* NOLINT(*)*/      \
+  }                                                                       \
+  template<typename T>                                                    \
+  MSHADOW_XINLINE half_t operator AOP (const volatile T& a) volatile {    \
     return *this = half_t(float(*this) OP float(a));  /* NOLINT(*)*/      \
   }
 
@@ -43,10 +53,16 @@ namespace half {
 #define MSHADOW_HALF_CONVERSIONOP(T)                                      \
   MSHADOW_XINLINE operator T() const {                                    \
     return T(__half2float(cuhalf_));  /* NOLINT(*)*/                      \
+  }                                                                       \
+  MSHADOW_XINLINE operator T() const volatile {                           \
+    return T(__half2float_warp(cuhalf_));  /* NOLINT(*)*/                      \
   }
 #else
 #define MSHADOW_HALF_CONVERSIONOP(T)                                      \
   MSHADOW_XINLINE operator T() const {                                    \
+    return T(half2float(half_));  /* NOLINT(*)*/                          \
+  }                                                                       \
+  MSHADOW_XINLINE operator T() const volatile {                           \
     return T(half2float(half_));  /* NOLINT(*)*/                          \
   }
 #endif  // MSHADOW_CUDA_HALF
@@ -67,15 +83,12 @@ class half_t {
   }
 #endif  // MSHADOW_CUDA_HALF
 
-  MSHADOW_XINLINE explicit half_t(const float& value) { constructor(value); }
+  MSHADOW_XINLINE half_t(const float& value) { constructor(value); }
   MSHADOW_XINLINE explicit half_t(const double& value) { constructor(value); }
   MSHADOW_XINLINE explicit half_t(const uint8_t& value) { constructor(value); }
   MSHADOW_XINLINE explicit half_t(const int32_t& value) { constructor(value); }
 
   MSHADOW_HALF_CONVERSIONOP(float)
-  MSHADOW_HALF_CONVERSIONOP(double)
-  MSHADOW_HALF_CONVERSIONOP(uint8_t)
-  MSHADOW_HALF_CONVERSIONOP(int32_t)
 
   MSHADOW_HALF_ASSIGNOP(+=, +)
   MSHADOW_HALF_ASSIGNOP(-=, -)
@@ -88,6 +101,26 @@ class half_t {
 
   MSHADOW_XINLINE half_t operator-() {
     return half_t(-float(*this));  // NOLINT(*)
+  }
+
+  MSHADOW_XINLINE half_t operator=(const half_t& a) {
+    half_ = a.half_;
+    return a;
+  }
+
+  template<typename T>
+  MSHADOW_XINLINE half_t operator=(const T& a) {
+    return *this = half_t(a);  /* NOLINT(*)*/
+  }
+
+  MSHADOW_XINLINE half_t operator=(const half_t& a) volatile {
+    half_ = a.half_;
+    return a;
+  }
+
+  template<typename T>
+  MSHADOW_XINLINE half_t operator=(const T& a) volatile {
+    return *this = half_t(a);  /* NOLINT(*)*/
   }
 
  private:
@@ -127,7 +160,7 @@ class half_t {
 #endif  // MSHADOW_CUDA_HALF
   };
 
-  MSHADOW_XINLINE uint16_t float2half(const float value) const {
+  MSHADOW_XINLINE uint16_t float2half(const float& value) const {
     Bits v, s;
     v.f = value;
     uint32_t sign = v.si & signN;
@@ -144,7 +177,42 @@ class half_t {
     return v.ui | sign;
   }
 
-  MSHADOW_XINLINE float half2float(const uint16_t value) const {
+  MSHADOW_XINLINE uint16_t float2half(const volatile float& value) const volatile {  // NOLINT (*)
+    Bits v, s;
+    v.f = value;
+    uint32_t sign = v.si & signN;
+    v.si ^= sign;
+    sign >>= shiftSign;  // logical shift
+    s.si = mulN;
+    s.si = s.f * v.f;  // correct subnormals
+    v.si ^= (s.si ^ v.si) & -(minN > v.si);
+    v.si ^= (infN ^ v.si) & -((infN > v.si) & (v.si > maxN));
+    v.si ^= (nanN ^ v.si) & -((nanN > v.si) & (v.si > infN));
+    v.ui >>= shift;  // logical shift
+    v.si ^= ((v.si - maxD) ^ v.si) & -(v.si > maxC);
+    v.si ^= ((v.si - minD) ^ v.si) & -(v.si > subC);
+    return v.ui | sign;
+  }
+
+  MSHADOW_XINLINE float half2float(const uint16_t& value) const {
+    Bits v;
+    v.ui = value;
+    int32_t sign = v.si & signC;
+    v.si ^= sign;
+    sign <<= shiftSign;
+    v.si ^= ((v.si + minD) ^ v.si) & -(v.si > subC);
+    v.si ^= ((v.si + maxD) ^ v.si) & -(v.si > maxC);
+    Bits s;
+    s.si = mulC;
+    s.f *= v.si;
+    int32_t mask = -(norC > v.si);
+    v.si <<= shift;
+    v.si ^= (s.si ^ v.si) & mask;
+    v.si |= sign;
+    return v.f;
+  }
+
+  MSHADOW_XINLINE float half2float(const volatile uint16_t& value) const volatile {  // NOLINT(*)
     Bits v;
     v.ui = value;
     int32_t sign = v.si & signC;

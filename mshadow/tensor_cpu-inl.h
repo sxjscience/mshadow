@@ -142,7 +142,8 @@ inline void MapPlan(TRValue<R, cpu, dim, DType> *dst,
                     const expr::Plan<E, DType> &plan) {
   Shape<2> shape = expr::ShapeCheck<dim, R>::Check(dst->self()).FlatTo2D();
   expr::Plan<R, DType> dplan = expr::MakePlan(dst->self());
-  for (index_t y = 0; y < shape[0]; ++y) {
+  #pragma omp parallel for
+  for (int y = 0; y < shape[0]; ++y) {
     for (index_t x = 0; x < shape[1]; ++x) {
       // trust your compiler! -_- they will optimize it
       Saver::Save(dplan.REval(y, x), plan.Eval(y, x));
@@ -259,7 +260,7 @@ inline void Softmax(Tensor<cpu, 1, DType> dst,
   for (index_t x = 1; x < dst.size(0); ++x) {
     if (mmax < energy[x]) mmax = energy[x];
   }
-  DType sum = 0.0f;
+  DType sum = DType(0.0f);
   for (index_t x = 0; x < dst.size(0); ++x) {
     dst[x] = std::exp(energy[x] - mmax);
     sum += dst[x];
@@ -313,7 +314,7 @@ inline void SoftmaxGrad(Tensor<cpu, 3, DType> dst,
       const index_t k = static_cast<int>(label[y][n]);
       if (k == static_cast<int>(ignore_label)) {
         for (index_t x = 0; x < dst.size(1); ++x) {
-          dst[y][x][n] = 0.0f;
+          dst[y][x][n] = DType(0.0f);
         }
       } else {
         for (index_t x = 0; x < dst.size(1); ++x) {
@@ -347,7 +348,7 @@ inline void Softmax(Tensor<cpu, 3, DType> dst,
       for (index_t x = 1; x < dst.size(1); ++x) {
         if (mmax < energy[y][x][n]) mmax = energy[y][x][n];
       }
-      DType sum = 0.0f;
+      DType sum = DType(0.0f);
       for (index_t x = 0; x < dst.size(1); ++x) {
         dst[y][x][n] = std::exp(energy[y][x][n] - mmax);
         sum += dst[y][x][n];
@@ -356,6 +357,15 @@ inline void Softmax(Tensor<cpu, 3, DType> dst,
         dst[y][x][n] /= sum;
       }
     }
+  }
+}
+
+template<typename IndexType, typename DType>
+inline void AddTakeGrad(Tensor<cpu, 2, DType> dst,
+                        const Tensor<cpu, 1, IndexType>& index,
+                        const Tensor<cpu, 2, DType> &src) {
+  for (index_t y = 0; y < index.size(0); ++y) {
+    dst[index[y]] += src[y];
   }
 }
 
