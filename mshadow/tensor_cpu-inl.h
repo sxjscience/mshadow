@@ -249,7 +249,7 @@ inline void MapReduceKeepHighDim(TRValue<R, cpu, 1, DType> *dst,
       }
       Reducer::Reduce(res, tres);
     }
-    Saver::Save(dplan.REval(0, c), res * scale);
+    Saver::Save(dplan.REval(0, c), DType(res * scale));
   }
 }
 
@@ -281,6 +281,27 @@ inline void SoftmaxGrad(Tensor<cpu, 2, DType> dst,
         dst[y][k] = src[y][k] - 1.0f;
       } else {
         dst[y][x] = src[y][x];
+      }
+    }
+  }
+}
+
+template<typename DType>
+inline void SoftmaxGrad(Tensor<cpu, 2, DType> dst,
+                        const Tensor<cpu, 2, DType> &src,
+                        const Tensor<cpu, 1, DType> &label,
+                        const DType &ignore_label) {
+  for (index_t y = 0; y < dst.size(0); ++y) {
+    const index_t k = static_cast<int>(label[y]);
+    for (index_t x = 0; x < dst.size(1); ++x) {
+      if (static_cast<int>(ignore_label) == k) {
+        dst[y][x] = 0.0f;
+      } else {
+        if (x == k) {
+          dst[y][k] = src[y][k] - 1.0f;
+        } else {
+          dst[y][x] = src[y][x];
+        }
       }
     }
   }

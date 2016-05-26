@@ -129,7 +129,7 @@ __global__ void MapRedKeepLowestKernel(DstPlan dst, Plan plan,
   __syncthreads();
 
   if (threadIdx.y == 0 && x < eshape[1]) {
-    Saver::Save(dst.REval(0, x),  s_res[threadIdx.x][0] * scale);
+    Saver::Save(dst.REval(0, x),  DType(s_res[threadIdx.x][0] * scale));
   }
 }
 
@@ -171,7 +171,7 @@ __global__ void MapReduceKeepDim1Kernel(DstPlan dst, Plan plan, DType scale, Sha
   __syncthreads();
   Reduce1D<Reducer, block_dim_bits>(s_rec);
   if (threadIdx.x == 0) {
-    Saver::Save(dst.REval(0, c), s_rec[0] * scale);
+    Saver::Save(dst.REval(0, c), DType(s_rec[0] * scale));
   }
 }
 
@@ -203,6 +203,30 @@ __global__ void SoftmaxGradKernel(DstPlan dst, SrcPlan1 src, SrcPlan2 label, ind
         dst.REval(y, xindex) = src.Eval(y, xindex) - 1.0f;
       } else {
         dst.REval(y, xindex) = src.Eval(y, xindex);
+      }
+    }
+  }
+}
+
+template<int x_bits, typename DType, typename DstPlan, typename SrcPlan1, typename SrcPlan2>
+__global__ void SoftmaxGradKernel(DstPlan dst, SrcPlan1 src, SrcPlan2 label, index_t xmax,
+                                  DType ignore_label) {
+  const unsigned x_size = 1 << x_bits;
+  const int y = blockIdx.x;
+  const int k = static_cast<int>(label.Eval(0, y));
+
+  // calculate normalizer, with writeback
+  for (unsigned x = 0; x < xmax; x += x_size) {
+    const unsigned xindex = x + threadIdx.x;
+    if (xindex < xmax) {
+      if (static_cast<int>(ignore_label) == k) {
+        dst.REval(y, xindex) = 0.0f;
+      } else {
+        if (xindex == k) {
+          dst.REval(y, xindex) = src.Eval(y, xindex) - 1.0f;
+        } else {
+          dst.REval(y, xindex) = src.Eval(y, xindex);
+        }
       }
     }
   }
@@ -288,6 +312,26 @@ inline void SoftmaxGrad(Tensor<gpu, 2, DType> &dst,
        expr::MakePlan(src),
        expr::MakePlan(label),
        dst.size(1));
+}
+
+template<typename DType>
+inline void SoftmaxGrad(Tensor<gpu, 2, DType> &dst,
+                        const Tensor<gpu, 2, DType> &src,
+                        const Tensor<gpu, 1, DType> &label,
+                        const DType &ignore_label) {
+  dim3 dimBlock(kBaseThreadNum);
+  dim3 dimGrid(dst.size(0));
+  CHECK_EQ(dst.shape_, src.shape_) << "SoftmaxGrad: shape mismatch";
+  CHECK_EQ(dst.size(0), label.size(0)) << "SoftmaxGrad: label shape mismatch";
+  CheckLaunchParam(dimGrid, dimBlock, "SoftmaxGrad");
+  cudaStream_t stream = Stream<gpu>::GetStream(dst.stream_);
+  SoftmaxGradKernel<kBaseThreadBits, DType>
+      <<<dimGrid, dimBlock, 0, stream>>>
+      (expr::MakePlan(dst),
+       expr::MakePlan(src),
+       expr::MakePlan(label),
+       dst.size(1),
+       ignore_label);
 }
 
 template<int n_bits, typename DType>
@@ -429,7 +473,7 @@ inline void AddTakeGrad(Tensor<gpu, 2, DType> dst,
                         const Tensor<gpu, 2, DType> &src) {
   const int kUnitBits = kMemUnitBits + 1;
   dim3 dimBlock(1 << kUnitBits);
-  dim3 dimGrid(dst.size(1) >> kUnitBits);
+  dim3 dimGrid((dst.size(1) + (1 << kUnitBits) - 1) >> kUnitBits);
 
   CHECK_EQ(dst.size(1), src.size(1)) << "AddtTakeGrad: shape mismatch";
   CHECK_EQ(index.size(0), src.size(0)) << "AddtTakeGrad: shape mismatch";

@@ -266,17 +266,25 @@ struct BLASEngine<gpu, half::half_t> {
 #if defined(CUDA_VERSION) && CUDA_VERSION >= 7050
 #if MSHADOW_USE_PASCAL == 1
     cublasStatus_t err = cublasHgemm(Stream<gpu>::GetBlasHandle(stream),
-                GetT(transa), GetT(transb), m, n, k, &alpha,
-                A, lda, B, ldb, &beta, C, ldc);
+                GetT(transa), GetT(transb), m, n, k, &alpha.cuhalf_,
+                A, lda, B, ldb, &beta.cuhalf_, C, ldc);
     CHECK_EQ(err, CUBLAS_STATUS_SUCCESS) << "Cublas Hgemm fail";
 #else
     float alpha_f = float(alpha);  // NOLINT(*)
     float beta_f = float(beta);  // NOLINT(*)
+#if CUDA_VERSION >= 8000
+    cublasStatus_t err = cublasSgemmEx(Stream<gpu>::GetBlasHandle(stream),
+                GetT(transa), GetT(transb), m, n, k, &alpha_f,
+                A, CUDA_R_16F, lda, B, CUDA_R_16F,
+                ldb, &beta_f, C, CUDA_R_16F, ldc);
+    CHECK_EQ(err, CUBLAS_STATUS_SUCCESS) << "Cublas SgemmEx fail";
+#else
     cublasStatus_t err = cublasSgemmEx(Stream<gpu>::GetBlasHandle(stream),
                 GetT(transa), GetT(transb), m, n, k, &alpha_f,
                 A, CUBLAS_DATA_HALF, lda, B, CUBLAS_DATA_HALF,
                 ldb, &beta_f, C, CUBLAS_DATA_HALF, ldc);
     CHECK_EQ(err, CUBLAS_STATUS_SUCCESS) << "Cublas SgemmEx fail";
+#endif  // CUDA_VERSION >= 8000
 #endif  // MSHADOW_USE_PASCAL == 1
 #else
     LOG(FATAL) << "Require CUDA version >= 7.5!";
@@ -423,6 +431,17 @@ struct DotEngine<SV, xpu, 2, 2, 2, transpose_left, transpose_right, DType> {
                           const Tensor<xpu, 2, DType> &rhs,
                           DType scale) {
     Tensor<xpu, 2, DType> &dst = *p_dst;
+#if MSHADOW_STAND_ALONE
+    if (xpu::kDevMask == cpu::kDevMask && scale == 1.0f) {
+      if (!transpose_left && !transpose_right) {
+        dst = expr::implicit_dot(lhs, rhs); return;
+      } else if (!transpose_left && transpose_right) {
+        dst = expr::implicit_dot(lhs, rhs.T()); return;
+      } else if (transpose_left && !transpose_right) {
+        dst = expr::implicit_dot(lhs.T(), rhs); return;
+      }
+    }
+#endif
     // set kernel stream
     // if there is no stream, crush
     BLASEngine<xpu, DType>::SetStream(dst.stream_);
