@@ -41,7 +41,7 @@ struct ReduceWithAxisExp:
     }
     this->size_ = src_shape[axis];
     this->trailing_ = 1;
-    if (!keepdim){
+    if (!keepdim) {
       for (index_t i = axis + 1; i < dimsrc; ++i) {
         this->trailing_ *= src_shape[i];
         this->shape_[i - 1] = src_shape[i];
@@ -53,7 +53,7 @@ struct ReduceWithAxisExp:
         this->shape_[i] = src_shape[i];
       }
     }
-    
+
     this->last_ = src_shape[dimsrc - 1];
     this->last_dst_dim_ = this->shape_[dimdst - 1];
   }
@@ -62,16 +62,18 @@ struct ReduceWithAxisExp:
 /*!
  * \brief reduce out the dimension of src labeled by axis.
  * \param Reducer type of the reducing operation
- * \param mask whether to output the mask indices
+ * \param mask whether to output the unmask indices
  * \param keepdim the keepdim flag
  * \tparam SrcExp source expression
  * \tparam DType data type
  * \tparam etype type of the expression
  */
-template<typename Reducer, bool mask, int keepdim = 0, typename SrcExp, typename DType, int etype>
-inline ReduceWithAxisExp<Reducer, SrcExp, DType, ExpInfo<SrcExp>::kDim, mask, ExpInfo<SrcExp>::kDim + keepdim - 1>
+template<typename Reducer, bool mask, int keepdim, typename SrcExp, typename DType, int etype>
+inline ReduceWithAxisExp<Reducer, SrcExp, DType, ExpInfo<SrcExp>::kDim, mask,
+  ExpInfo<SrcExp>::kDim + keepdim - 1>
 reduce_with_axis(const Exp<SrcExp, DType, etype> &src, int axis) {
-  return ReduceWithAxisExp<Reducer, SrcExp, DType, ExpInfo<SrcExp>::kDim, mask, ExpInfo<SrcExp>::kDim + keepdim - 1>(src.self(), axis, keepdim);
+  return ReduceWithAxisExp<Reducer, SrcExp, DType, ExpInfo<SrcExp>::kDim, mask,
+    ExpInfo<SrcExp>::kDim + keepdim - 1>(src.self(), axis, keepdim);
 }
 //----------------------
 // Execution plan

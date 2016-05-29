@@ -40,7 +40,8 @@ struct BroadcastWithAxisExp:
     this->trailing_ = 1;
 
     if (!keepdim) {
-      CHECK(dimsrc > axis && axis >= -1) << "broadcast axis (no keepdim) out of bound, axis must be between -1 and" << dimsrc - 1 << ", given=" << axis << ".";
+      CHECK(dimsrc > axis && axis >= -1) << "broadcast axis (no keepdim) out of bound, "  <<
+        "axis must be between -1 and" << dimsrc - 1 << ", given=" << axis << ".";
       for (int i = 0; i <= axis; ++i) {
         this->shape_[i] = src_shape[i];
       }
@@ -50,8 +51,10 @@ struct BroadcastWithAxisExp:
         this->shape_[i + 1] = src_shape[i];
       }
     } else {
-      CHECK(dimdst > axis && axis >= 0) << "broadcast axis (keepdim) out of bound, axis must be between 0 and" << dimdst - 1 << ", given=" << axis << ".";
-      CHECK_EQ(src_shape[axis], 1) << "Size of the dimension of the broadcasting axis must be 1 when keepdim is on, src_shape[" << axis << "]=" << src_shape[axis] << ".";
+      CHECK(dimdst > axis && axis >= 0) << "broadcast axis (keepdim) out of bound, " <<
+        "axis must be between 0 and" << dimdst - 1 << ", given=" << axis << ".";
+      CHECK_EQ(src_shape[axis], 1) << "Size of the dimension of the broadcasting axis must be 1" <<
+        " when keepdim is on, src_shape[" << axis << "]=" << src_shape[axis] << ".";
       for (int i = 0; i <= axis - 1; ++i) {
         this->shape_[i] = src_shape[i];
       }
@@ -61,7 +64,7 @@ struct BroadcastWithAxisExp:
         this->shape_[i] = src_shape[i];
       }
     }
-    
+
     this->last_ = src_shape[dimsrc - 1];
     this->dst_last_ = this->shape_[dimdst - 1];
   }
@@ -74,10 +77,12 @@ struct BroadcastWithAxisExp:
  * \tparam DType data type
  * \tparam etype type of the expression
  */
-template<int keepdim = 0, typename SrcExp, typename DType, int etype>
-inline BroadcastWithAxisExp<SrcExp, DType, ExpInfo<SrcExp>::kDim, ExpInfo<SrcExp>::kDim + 1 - keepdim>
+template<int keepdim, typename SrcExp, typename DType, int etype>
+inline BroadcastWithAxisExp<SrcExp, DType, ExpInfo<SrcExp>::kDim,
+  ExpInfo<SrcExp>::kDim + 1 - keepdim>
 broadcast_with_axis(const Exp<SrcExp, DType, etype> &src, const int axis, const index_t size) {
-  return BroadcastWithAxisExp<SrcExp, DType, ExpInfo<SrcExp>::kDim, ExpInfo<SrcExp>::kDim + 1 - keepdim>(src.self(), axis, size, keepdim);
+  return BroadcastWithAxisExp<SrcExp, DType, ExpInfo<SrcExp>::kDim,
+    ExpInfo<SrcExp>::kDim + 1 - keepdim>(src.self(), axis, size, keepdim);
 }
 //----------------------
 // Execution plan
@@ -85,9 +90,9 @@ broadcast_with_axis(const Exp<SrcExp, DType, etype> &src, const int axis, const 
 template<typename SrcExp, typename DType, int dimsrc, int dimdst>
 struct Plan<BroadcastWithAxisExp<SrcExp, DType, dimsrc, dimdst>, DType> {
  public:
- explicit Plan(const BroadcastWithAxisExp<SrcExp, DType, dimsrc, dimdst> &e)
-      : src_(MakePlan(e.src_)), dst_last_(e.dst_last_),
-        trailing_(e.trailing_), size_(e.size_), last_(e.last_) {}
+  explicit Plan(const BroadcastWithAxisExp<SrcExp, DType, dimsrc, dimdst> &e)
+       : src_(MakePlan(e.src_)), dst_last_(e.dst_last_),
+         trailing_(e.trailing_), size_(e.size_), last_(e.last_) {}
   MSHADOW_XINLINE DType Eval(index_t i, index_t j) const {
     index_t x = (i * dst_last_ + j) / trailing_ / size_;
     index_t y = (i * dst_last_ + j) % trailing_;
