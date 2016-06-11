@@ -11,85 +11,85 @@
 
 namespace mshadow {
 namespace op {
-  namespace complex {
-    enum BinaryCalculationType { kBinaryCC, kBinaryCR, kBinaryRC};
-    enum UnitaryCalculationType { kUnitaryC2R, kUnitaryC2C };
+namespace complex {
+enum BinaryCalculationType { kBinaryCC, kBinaryCR, kBinaryRC};
+enum UnitaryCalculationType { kUnitaryC2R, kUnitaryC2C };
 
-    struct mul {
-      /*! \brief map a_real, a_imag, b_real, b_imag to result using defined operation */
-      template<typename DType>
-      MSHADOW_XINLINE static DType RealMap(DType a_real, DType a_imag,
-        DType b_real, DType b_imag) {
-        return a_real * b_real - a_imag * b_imag;
-      }
-      template<typename DType>
-      MSHADOW_XINLINE static DType ImagMap(DType a_real, DType a_imag,
-        DType b_real, DType b_imag) {
-        return a_real * b_imag + b_real * a_imag;
-      }
-    };
-
-    struct div {
-      /*! \brief map a_real, a_imag, b_real, b_imag to result using defined operation */
-      template<typename DType>
-      MSHADOW_XINLINE static DType RealMap(DType a_real, DType a_imag,
-        DType b_real, DType b_imag) {
-        return (a_real * b_real + a_imag * b_imag) / (b_real * b_real + b_imag * b_imag);
-      }
-      template<typename DType>
-      MSHADOW_XINLINE static DType ImagMap(DType a_real, DType a_imag,
-        DType b_real, DType b_imag) {
-        return (b_real * a_imag - a_real * b_imag) / (b_real * b_real + b_imag * b_imag);
-      }
-    };
-
-    struct conjugate {
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        return src_.Eval(real_i, real_j);
-      }
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType ImagMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        return -src_.Eval(imag_i, imag_j);
-      }
-    };
-
-    struct exchange {
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        return src_.Eval(imag_i, imag_j);
-      }
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType ImagMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        return src_.Eval(real_i, real_j);
-      }
-    };
-
-    struct abs_square {
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        DType real_val = src_.Eval(real_i, real_j);
-        DType image_val = src_.Eval(imag_i, imag_j);
-        return real_val * real_val + image_val * image_val;
-      }
-    };
-
-    struct sum_real_imag {
-      template<typename TA, typename DType>
-      MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
-        index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
-        DType real_val = src_.Eval(real_i, real_j);
-        DType image_val = src_.Eval(imag_i, imag_j);
-        return real_val + image_val;
-      }
-    };
+struct mul {
+  /*! \brief map a_real, a_imag, b_real, b_imag to result using defined operation */
+  template<typename DType>
+  MSHADOW_XINLINE static DType RealMap(DType a_real, DType a_imag,
+    DType b_real, DType b_imag) {
+    return a_real * b_real - a_imag * b_imag;
   }
-}
+  template<typename DType>
+  MSHADOW_XINLINE static DType ImagMap(DType a_real, DType a_imag,
+    DType b_real, DType b_imag) {
+    return a_real * b_imag + b_real * a_imag;
+  }
+};
+
+struct div {
+  /*! \brief map a_real, a_imag, b_real, b_imag to result using defined operation */
+  template<typename DType>
+  MSHADOW_XINLINE static DType RealMap(DType a_real, DType a_imag,
+    DType b_real, DType b_imag) {
+    return (a_real * b_real + a_imag * b_imag) / (b_real * b_real + b_imag * b_imag);
+  }
+  template<typename DType>
+  MSHADOW_XINLINE static DType ImagMap(DType a_real, DType a_imag,
+    DType b_real, DType b_imag) {
+    return (b_real * a_imag - a_real * b_imag) / (b_real * b_real + b_imag * b_imag);
+  }
+};
+
+struct conjugate {
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    return src_.Eval(real_i, real_j);
+  }
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType ImagMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    return -src_.Eval(imag_i, imag_j);
+  }
+};
+
+struct exchange {
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    return src_.Eval(imag_i, imag_j);
+  }
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType ImagMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    return src_.Eval(real_i, real_j);
+  }
+};
+
+struct abs_square {
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    DType real_val = src_.Eval(real_i, real_j);
+    DType image_val = src_.Eval(imag_i, imag_j);
+    return real_val * real_val + image_val * image_val;
+  }
+};
+
+struct sum_real_imag {
+  template<typename TA, typename DType>
+  MSHADOW_XINLINE static DType RealMap(const expr::Plan<TA, DType> &src_,
+    index_t real_i, index_t real_j, index_t imag_i, index_t imag_j) {
+    DType real_val = src_.Eval(real_i, real_j);
+    DType image_val = src_.Eval(imag_i, imag_j);
+    return real_val + image_val;
+  }
+};
+}  // namespace complex
+}  // namespace op
 
 namespace expr {
 //--------------------
@@ -317,7 +317,7 @@ struct ShapeCheck<dim, ComplexUnitaryExp<calctype, OP, TA, DType, etype> > {
 // complex binary expression (cc)
 template<typename OP, typename TA, typename TB, int etype, typename DType>
 class Plan<ComplexBinaryMapExp<op::complex::kBinaryCC, OP, TA, TB, DType, etype>, DType> {
-public:
+ public:
   explicit Plan(const Plan<TA, DType> &lhs, const Plan<TB, DType> &rhs)
     : lhs_(lhs), rhs_(rhs) {}
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
@@ -325,13 +325,13 @@ public:
     if (x % 2 == 0) {
       return OP::RealMap(lhs_.Eval(y, base_x), lhs_.Eval(y, base_x + 1),
         rhs_.Eval(y, base_x), rhs_.Eval(y, base_x + 1));
-    } else{
+    } else {
       return OP::ImagMap(lhs_.Eval(y, base_x), lhs_.Eval(y, base_x + 1),
         rhs_.Eval(y, base_x), rhs_.Eval(y, base_x + 1));
     }
   }
 
-private:
+ private:
   Plan<TA, DType> lhs_;
   Plan<TB, DType> rhs_;
 };
@@ -339,7 +339,7 @@ private:
 // complex binary expression (cr)
 template<typename OP, typename TA, typename TB, int etype, typename DType>
 class Plan<ComplexBinaryMapExp<op::complex::kBinaryCR, OP, TA, TB, DType, etype>, DType> {
-public:
+ public:
   explicit Plan(const Plan<TA, DType> &lhs, const Plan<TB, DType> &rhs)
     : lhs_(lhs), rhs_(rhs) {}
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
@@ -347,13 +347,13 @@ public:
     if (x % 2 == 0) {
       return OP::RealMap(lhs_.Eval(y, base_x), lhs_.Eval(y, base_x + 1),
         rhs_.Eval(y, base_x / 2), static_cast<DType>(0));
-    } else{
+    } else {
       return OP::ImagMap(lhs_.Eval(y, base_x), lhs_.Eval(y, base_x + 1),
         rhs_.Eval(y, base_x / 2), static_cast<DType>(0));
     }
   }
 
-private:
+ private:
   Plan<TA, DType> lhs_;
   Plan<TB, DType> rhs_;
 };
@@ -362,7 +362,7 @@ private:
 // complex binary expression (rc)
 template<typename OP, typename TA, typename TB, int etype, typename DType>
 class Plan<ComplexBinaryMapExp<op::complex::kBinaryRC, OP, TA, TB, DType, etype>, DType> {
-public:
+ public:
   explicit Plan(const Plan<TA, DType> &lhs, const Plan<TB, DType> &rhs)
     : lhs_(lhs), rhs_(rhs) {}
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
@@ -370,13 +370,13 @@ public:
     if (x % 2 == 0) {
       return OP::RealMap(lhs_.Eval(y, base_x / 2), static_cast<DType>(0),
         rhs_.Eval(y, base_x), rhs_.Eval(y, base_x + 1));
-    } else{
+    } else {
       return OP::ImagMap(lhs_.Eval(y, base_x / 2), static_cast<DType>(0),
         rhs_.Eval(y, base_x), rhs_.Eval(y, base_x + 1));
     }
   }
 
-private:
+ private:
   Plan<TA, DType> lhs_;
   Plan<TB, DType> rhs_;
 };
@@ -385,32 +385,31 @@ private:
 // complex unitary expression (c2c)
 template<typename OP, typename TA, int etype, typename DType>
 class Plan<ComplexUnitaryExp<op::complex::kUnitaryC2C, OP, TA, DType, etype>, DType> {
-public:
+ public:
   explicit Plan(const Plan<TA, DType> &src) : src_(src) {}
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
     const index_t base_x = static_cast<index_t>(x / 2) * 2;
     if (0 == x % 2) {
       return OP::RealMap(src_, y, base_x, y, base_x + 1);
-    }
-    else {
+    } else {
       return OP::ImagMap(src_, y, base_x, y, base_x + 1);
     }
   }
 
-private:
+ private:
   Plan<TA, DType> src_;
 };
 
 // complex unitary expression (c2r)
 template<typename OP, typename TA, int etype, typename DType>
 class Plan<ComplexUnitaryExp<op::complex::kUnitaryC2R, OP, TA, DType, etype>, DType> {
-public:
+ public:
   explicit Plan(const Plan<TA, DType> &src) : src_(src) {}
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
     return OP::RealMap(src_, y, x * 2, y, x * 2 + 1);
   }
 
-private:
+ private:
   Plan<TA, DType> src_;
 };
 
