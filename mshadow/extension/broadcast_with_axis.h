@@ -101,7 +101,7 @@ inline BroadcastWithAxisExp<SrcExp, DType, ExpInfo<SrcExp>::kDim,
 }
 
 /*!
-* \brief Broadcasting the tensor in multiple axes. The dimension of the source tensor 
+* \brief Broadcasting the tensor in multiple axes. The dimension of the source tensor
          in the given axes must be 1.
 * \tparam SrcExp source expression
 * \tparam DType  data type
@@ -133,7 +133,7 @@ struct BroadcastWithMultiAxesExp :
     CHECK(this->axesnum_ <= dimsrc) << "Number of broadcasting axes must be smaller than"
       "the source ndim, number of axes=" << this->axesnum_ << " dimsrc=" << dimsrc;
     for (index_t i = 0; i < this->axesnum_; i++) {
-      CHECK(dimsrc > axes[i] && axes[i] >= 0) << "broadcast axis (keepdim) out of bound, " <<
+      CHECK(dimsrc > axes[i]) << "broadcast axis (keepdim) out of bound, " <<
         "all axes must be between 0 and" << dimsrc - 1 << ", given axes[" << i << "] = " << axes[i]
         << ".";
       CHECK_EQ(src_shape[axes[i]], 1) << "Size of the dimension of the broadcasting axis must be 1"
@@ -179,7 +179,7 @@ const TShape &axes, const TShape &sizes) {
 }
 
 /*!
-* \brief Broadcasting the tensor to the target shape, 
+* \brief Broadcasting the tensor to the target shape,
          dimension of different sizes must be 1 in the original tensor.
 * \param src source
 * \param target_shape shape of the target broadcasting tensor
