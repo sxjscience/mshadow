@@ -7,8 +7,9 @@
 #ifndef MSHADOW_EXTENSION_BROADCAST_WITH_AXIS_H_
 #define MSHADOW_EXTENSION_BROADCAST_WITH_AXIS_H_
 
-#include "../extension.h"
 #include <mshadow/tensor_blob.h>
+#include <vector>
+#include "../extension.h"
 
 namespace mshadow {
 namespace expr {
@@ -230,7 +231,7 @@ struct Plan<BroadcastWithAxisExp<SrcExp, DType, dimsrc, dimdst>, DType> {
 
 template<typename SrcExp, typename DType, int dimsrc>
 struct Plan<BroadcastWithMultiAxesExp<SrcExp, DType, dimsrc>, DType> {
-public:
+ public:
   explicit Plan(const BroadcastWithMultiAxesExp<SrcExp, DType, dimsrc> &e)
     : src_(MakePlan(e.src_)), dst_last_(e.dst_last_),
     trailings_(e.trailings_), sizes_(e.sizes_), last_(e.last_), axesnum_(e.axesnum_) {}
@@ -242,7 +243,7 @@ public:
     return src_.Eval(indx / last_, indx % last_);
   }
 
-private:
+ private:
   Plan<SrcExp, DType> src_;
   const index_t dst_last_, last_, axesnum_;
   const Shape<dimsrc> trailings_, sizes_;
