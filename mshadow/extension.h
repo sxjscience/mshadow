@@ -36,8 +36,4 @@
 #include "./extension/transpose.h"
 #include "./extension/flip.h"
 #include "./extension/complex.h"
-#include "./extension/range.h"
-#include "./extension/bilinear_resample.h"
-#include "./extension/bilinear_resample_grad.h"
-#include "./extension/choose.h"
 #endif  // MSHADOW_EXTENSION_H_
