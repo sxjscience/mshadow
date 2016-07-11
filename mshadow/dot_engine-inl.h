@@ -492,11 +492,50 @@ struct BLASEngine<gpu, float> {
                                   int m, int n, int k, float alpha,
                                   const float *A, int lda, const float *B, int ldb,
                                   float beta, float *C, int ldc, int batch_count) {
+    CHECK(batch_count >= 1) << "Number of batch must be >=1!";
+#if CUDA_VERSION >= 4010
+    float **A_host_ptr = NULL;
+    float **B_host_ptr = NULL;
+    float **C_host_ptr = NULL;
+    float **A_dev_ptr = NULL;
+    float **B_dev_ptr = NULL;
+    float **C_dev_ptr = NULL;
+    A_host_ptr = new float*[batch_count];
+    B_host_ptr = new float*[batch_count];
+    C_host_ptr = new float*[batch_count];
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&A_dev_ptr, batch_count * sizeof(float*)));
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&B_dev_ptr, batch_count * sizeof(float*)));
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&C_dev_ptr, batch_count * sizeof(float*)));
+    for (int i = 0; i < batch_count; i++) {
+      A_host_ptr[i] = const_cast<float*>(A + i * m * k);
+      B_host_ptr[i] = const_cast<float*>(B + i * k * n);
+      C_host_ptr[i] = C + i * m * n;
+    }
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(A_dev_ptr, A_host_ptr, batch_count * sizeof(float*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(B_dev_ptr, B_host_ptr, batch_count * sizeof(float*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(C_dev_ptr, C_host_ptr, batch_count * sizeof(float*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    cublasStatus_t err = cublasSgemmBatched(Stream<gpu>::GetBlasHandle(stream),
+                                            GetT(transa), GetT(transb), m, n, k, &alpha,
+                                            (const float**)A_dev_ptr, lda,
+                                            (const float**)B_dev_ptr, ldb,
+                                            &beta, C_dev_ptr, ldc, batch_count);
+    CHECK_EQ(err, CUBLAS_STATUS_SUCCESS) << "Cublas: SgemmBatched fail";
+    delete[] A_host_ptr;
+    delete[] B_host_ptr;
+    delete[] C_host_ptr;
+    MSHADOW_CUDA_CALL(cudaFree(A_dev_ptr));
+    MSHADOW_CUDA_CALL(cudaFree(B_dev_ptr));
+    MSHADOW_CUDA_CALL(cudaFree(C_dev_ptr));
+#else
     for (int i = 0; i < batch_count; ++i) {
       gemm(stream, transa, transb, m, n, k, alpha,
            A + i * m * k, lda, B + i * k * n, ldb,
            beta, C + i * m * n, ldc);
     }
+#endif  // CUDA_VERSION >= 4010
   }
   inline static void gemv(Stream<gpu> *stream,
                           bool trans, int m, int n, float alpha,
@@ -576,11 +615,49 @@ struct BLASEngine<gpu, double> {
                                   int m, int n, int k, double alpha,
                                   const double *A, int lda, const double *B, int ldb,
                                   double beta, double *C, int ldc, int batch_count) {
+#if CUDA_VERSION >= 4010
+    double **A_host_ptr = NULL;
+    double **B_host_ptr = NULL;
+    double **C_host_ptr = NULL;
+    double **A_dev_ptr = NULL;
+    double **B_dev_ptr = NULL;
+    double **C_dev_ptr = NULL;
+    A_host_ptr = new double*[batch_count];
+    B_host_ptr = new double*[batch_count];
+    C_host_ptr = new double*[batch_count];
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&A_dev_ptr, batch_count * sizeof(double*)));
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&B_dev_ptr, batch_count * sizeof(double*)));
+    MSHADOW_CUDA_CALL(cudaMalloc((void **)&C_dev_ptr, batch_count * sizeof(double*)));
+    for (int i = 0; i < batch_count; i++) {
+      A_host_ptr[i] = const_cast<double*>(A + i * m * k);
+      B_host_ptr[i] = const_cast<double*>(B + i * k * n);
+      C_host_ptr[i] = C + i * m * n;
+    }
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(A_dev_ptr, A_host_ptr, batch_count * sizeof(double*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(B_dev_ptr, B_host_ptr, batch_count * sizeof(double*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    MSHADOW_CUDA_CALL(cudaMemcpyAsync(C_dev_ptr, C_host_ptr, batch_count * sizeof(double*),
+                                      cudaMemcpyHostToDevice, stream->stream_));
+    cublasStatus_t err = cublasDgemmBatched(Stream<gpu>::GetBlasHandle(stream),
+                                            GetT(transa), GetT(transb), m, n, k, &alpha,
+                                            (const double**)A_dev_ptr, lda,
+                                            (const double**)B_dev_ptr, ldb,
+                                            &beta, C_dev_ptr, ldc, batch_count);
+    CHECK_EQ(err, CUBLAS_STATUS_SUCCESS) << "Cublas: DgemmBatched fail";
+    delete[] A_host_ptr;
+    delete[] B_host_ptr;
+    delete[] C_host_ptr;
+    MSHADOW_CUDA_CALL(cudaFree(A_dev_ptr));
+    MSHADOW_CUDA_CALL(cudaFree(B_dev_ptr));
+    MSHADOW_CUDA_CALL(cudaFree(C_dev_ptr));
+#else
     for (int i = 0; i < batch_count; ++i) {
       gemm(stream, transa, transb, m, n, k, alpha,
            A + i * m * k, lda, B + i * k * n, ldb,
            beta, C + i * m * n, ldc);
     }
+#endif
   }
   inline static void gemv(Stream<gpu> *stream,
                           bool trans, int m, int n, double alpha,
@@ -732,7 +809,7 @@ struct DotEngine<SV, xpu, 2, 1, 1, true, false, DType> {
     }
   }
 };
-// dst = batched_dot(lhs[.T], rhs[.T])
+// dst = batch_dot(lhs[.T], rhs[.T])
 template<typename SV, typename xpu,
   bool transpose_left, bool transpose_right, typename DType>
 struct DotEngine<SV, xpu, 3, 3, 3, transpose_left, transpose_right, DType> {
@@ -757,46 +834,17 @@ struct DotEngine<SV, xpu, 3, 3, 3, transpose_left, transpose_right, DType> {
       << "lhs: " << sleft << "\n"
       << "rhs: " << sright << "\n";
     // use column major argument to compatible with most BLAS
-    if (sleft[1] == 1) {
-      // For (batch, 1, K) gemm (batch, K, N), we can use (batch, N, K) gemv (batch, K)
-      BLASEngine<xpu, DType>::batched_gemv
-        (dst.stream_,
-        transpose_right,
-        rhs.size(2), rhs.size(1), scale * SV::AlphaBLAS(),
-        rhs.dptr_, rhs.stride_,
-        lhs.dptr_, 1, SV::BetaBLAS(),
-        dst.dptr_, 1, dst.size(0));
-    } else if (sleft[2] == 1 && (SV::BetaBLAS() == 0.0f || SV::BetaBLAS() == 1.0f)) {
-      // For (batch, M, 1) gemm (batch, 1, N) + Beta = 0, we can use (batch, M) ger (batch, N)
-      if (SV::BetaBLAS() == 0.0f) {
-        dst = DType(0);
-      }
-      BLASEngine<xpu, DType>::batched_ger
-        (dst.stream_, sright[2], sleft[1], scale * SV::AlphaBLAS(),
-        rhs.dptr_, 1, lhs.dptr_, 1, dst.dptr_, dst.stride_, dst.size(0));
-    } else if (sright[2] == 1) {
-      // For (batch, M, K) gemm (batch, K, 1), we can use (batch, M, K) gemv (batch, K)
-      BLASEngine<xpu, DType>::batched_gemv
-        (dst.stream_,
-        !transpose_left,
-        lhs.size(2), lhs.size(1), scale * SV::AlphaBLAS(),
-        lhs.dptr_, lhs.stride_,
-        rhs.dptr_, 1, SV::BetaBLAS(),
-        dst.dptr_, 1, dst.size(0));
-    } else {
-      // For general case, use gemm
-      BLASEngine<xpu, DType>::batched_gemm
-        (dst.stream_,
-        transpose_right, transpose_left,
-        transpose_right ? rhs.size(1) : rhs.size(2),
-        transpose_left ? lhs.size(2) : lhs.size(1),
-        transpose_right ? rhs.size(2) : rhs.size(1),
-        DType(scale * SV::AlphaBLAS()),
-        rhs.dptr_, rhs.stride_,
-        lhs.dptr_, lhs.stride_,
-        DType(SV::BetaBLAS()),
-        dst.dptr_, dst.stride_, dst.size(0));
-    }
+    BLASEngine<xpu, DType>::batched_gemm
+      (dst.stream_,
+      transpose_right, transpose_left,
+      transpose_right ? rhs.size(1) : rhs.size(2),
+      transpose_left ? lhs.size(2) : lhs.size(1),
+      transpose_right ? rhs.size(2) : rhs.size(1),
+      DType(scale * SV::AlphaBLAS()),
+      rhs.dptr_, rhs.stride_,
+      lhs.dptr_, lhs.stride_,
+      DType(SV::BetaBLAS()),
+      dst.dptr_, dst.stride_, dst.size(0));
   }
 };
 }  // namespace expr
