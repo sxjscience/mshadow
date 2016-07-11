@@ -21,7 +21,7 @@ namespace expr {
  */
 template<typename DType>
 struct RangeExp:
-      public Exp<RangeExp<DType>, DType, type::kChainer> {
+      public Exp<RangeExp<DType>, DType, type::kMapper> {
   const int start_;
   const int stop_;
   const int step_;
