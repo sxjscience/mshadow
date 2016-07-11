@@ -503,9 +503,12 @@ struct BLASEngine<gpu, float> {
     A_host_ptr = new float*[batch_count];
     B_host_ptr = new float*[batch_count];
     C_host_ptr = new float*[batch_count];
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&A_dev_ptr, batch_count * sizeof(float*)));
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&B_dev_ptr, batch_count * sizeof(float*)));
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&C_dev_ptr, batch_count * sizeof(float*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&A_dev_ptr),
+                                 batch_count * sizeof(float*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&B_dev_ptr),
+                                 batch_count * sizeof(float*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&C_dev_ptr),
+                                 batch_count * sizeof(float*)));
     for (int i = 0; i < batch_count; i++) {
       A_host_ptr[i] = const_cast<float*>(A + i * m * k);
       B_host_ptr[i] = const_cast<float*>(B + i * k * n);
@@ -625,9 +628,12 @@ struct BLASEngine<gpu, double> {
     A_host_ptr = new double*[batch_count];
     B_host_ptr = new double*[batch_count];
     C_host_ptr = new double*[batch_count];
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&A_dev_ptr, batch_count * sizeof(double*)));
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&B_dev_ptr, batch_count * sizeof(double*)));
-    MSHADOW_CUDA_CALL(cudaMalloc((void **)&C_dev_ptr, batch_count * sizeof(double*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&A_dev_ptr),
+                                 batch_count * sizeof(double*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&B_dev_ptr),
+                                 batch_count * sizeof(double*)));
+    MSHADOW_CUDA_CALL(cudaMalloc(reinterpret_cast<void **>(&C_dev_ptr),
+                                 batch_count * sizeof(double*)));
     for (int i = 0; i < batch_count; i++) {
       A_host_ptr[i] = const_cast<double*>(A + i * m * k);
       B_host_ptr[i] = const_cast<double*>(B + i * k * n);
