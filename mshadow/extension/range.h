@@ -12,9 +12,10 @@
 namespace mshadow {
 namespace expr {
 /*!
- * \brief Generate a range vector similar to python: range(start, stop[, step]).
+ * \brief Generate a range vector similar to python: range(start, stop[, step][, repeat]).
           If step is positive, the last element is the largest start + i * step less than stop
           If step is negative, the last element is the smallest start + i * step greater than stop.
+          All elements are repeated for `repeat` times, e.g range(0, 4, 2, 3) --> 0, 0, 0, 2, 2, 2
  * \tparam SrcExp type of lhs expression
  * \tparam IndexExp type of index expression
  * \tparam DType the type of elements
@@ -25,15 +26,16 @@ struct RangeExp:
   const int start_;
   const int stop_;
   const int step_;
+  const int repeat_;
   /*! \brief constructor */
-  RangeExp(int start, int stop, int step)
-      : start_(start), stop_(stop), step_(step) {}
+  RangeExp(int start, int stop, int step, int repeat)
+      : start_(start), stop_(stop), step_(step), repeat_(repeat) {}
 };
 
 template<typename DType>
 inline RangeExp<DType>
-range(int start, int stop, int step = 1) {
-  return RangeExp<DType>(start, stop, step);
+range(int start, int stop, int step = 1, int repeat = 1) {
+  return RangeExp<DType>(start, stop, step, repeat);
 }
 
 //----------------------
@@ -45,16 +47,18 @@ struct Plan<RangeExp<DType>, DType> {
   explicit Plan(const RangeExp<DType> &e)
       : start_(e.start_),
         stop_(e.stop_),
-        step_(e.step_) {
+        step_(e.step_),
+        repeat_(e.repeat_) {
   }
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
-    return static_cast<DType>(start_ + static_cast<int>(x) * step_);
+    return static_cast<DType>(start_ + (static_cast<int>(x) / repeat_) *  step_);
   }
 
  private:
   const int start_;
   const int stop_;
   const int step_;
+  const int repeat_;
 };
 
 template<typename DType>
@@ -68,17 +72,19 @@ struct ShapeCheck<dim, RangeExp<DType> > {
   inline static Shape<dim>
   Check(const RangeExp<DType> &t) {
     CHECK(dim == 1)
-        << "RangeExp only support 1 dimension output";
+        << "RangeExp only support 1 dimension output, received " << dim;
     CHECK(t.step_ != 0)
-        << "RangeExp does not support step=0";
+        << "RangeExp does not support step=0, received " << t.step_;
+    CHECK(t.repeat_ > 0)
+      << "RangeExp only supports repeat > 0, received " << t.repeat_;
     if (t.step_ > 0) {
       CHECK(t.start_ < t.stop_) << "RangeExp does not support (start, stop, step) = "
                                 << "(" << t.start_ << "," << t.stop_ << "," << t.step_ << ")";
-      return Shape1((t.stop_ - 1 - t.start_) / t.step_ + 1);
+      return Shape1(t.repeat_ * ((t.stop_ - 1 - t.start_) / t.step_ + 1));
     } else {
       CHECK(t.start_ > t.stop_) << "RangeExp does not support (start, stop, step)= "
                                 << "(" << t.start_ << "," << t.stop_ << "," << t.step_ << ")";
-      return Shape1((t.start_ - 1 - t.stop_) / (- t.step_) + 1);
+      return Shape1(t.repeat_ * ((t.start_ - 1 - t.stop_) / (- t.step_) + 1));
     }
   }
 };
