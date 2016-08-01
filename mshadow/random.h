@@ -52,9 +52,15 @@ class Random<cpu, DType> {
   inline void Seed(int seed) {
 #if MSHADOW_IN_CXX11
     rnd_engine_.seed(seed);
-#else
-    this->rseed_ = static_cast<unsigned>(seed);
 #endif
+    this->rseed_ = static_cast<unsigned>(seed);
+  }
+  /*!
+   * \brief get random seed used in random generator
+   * \return seed in unsigned
+   */
+  inline unsigned GetSeed() const {
+    return rseed_;
   }
   /*!
    * \brief set the stream of computation
@@ -144,6 +150,8 @@ class Random<cpu, DType> {
 #if MSHADOW_IN_CXX11
   /*! \brief use c++11 random engine. */
   std::mt19937 rnd_engine_;
+  /*! \brief random number seed used in random engine */
+  unsigned rseed_;
   // implementing generators.
   inline void GenUniform(DType *dptr, index_t size, DType a, DType b) {
     std::uniform_real_distribution<DType> dist_uniform(a, b);

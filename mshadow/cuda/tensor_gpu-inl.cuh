@@ -194,6 +194,27 @@ inline void MapReduceKeepDim1(expr::Plan<DstExp, DType> dst,
       <<<dimGrid, dimBlock, 0, stream>>>(dst, plan, scale, pshape);
 }
 
+template<int x_bits, typename DType>
+__global__ void GetBatchedViewKernel(DType **dst, DType *src, int num, int stride) {
+  const int x_size = 1 << x_bits;
+  const int start = threadIdx.x;
+  // Copy the addresses of src to dst every stride steps
+  for (int i = start; i < num; i += x_size) {
+    dst[i] = src + i * stride;
+  }
+}
+
+template<typename DType>
+inline void GetBatchedView(DType **dst, DType *src, int num, int stride,
+                           Stream<gpu> *stream) {
+  cudaStream_t stream_ = Stream<gpu>::GetStream(stream);
+  dim3 dimBlock(kBaseThreadNum);
+  dim3 dimGrid(1);
+  CheckLaunchParam(dimGrid, dimBlock, "GetBatchedView");
+  GetBatchedViewKernel<kBaseThreadBits, DType>
+    <<<dimGrid, dimBlock, 0, stream_>>> (dst, src, num, stride);
+}
+
 template<int x_bits, typename DType, typename DstPlan, typename SrcPlan1, typename SrcPlan2>
 __global__ void SoftmaxGradKernel(DstPlan dst, SrcPlan1 src, SrcPlan2 label, index_t xmax) {
   const unsigned x_size = 1 << x_bits;
@@ -583,22 +604,22 @@ inline void SortByKey(Tensor<gpu, 1, KDType> keys, Tensor<gpu, 1, VDType> values
                       bool is_ascend) {
   CHECK_EQ(keys.CheckContiguous(), true);
   CHECK_EQ(values.CheckContiguous(), true);
+#if CUDA_VERSION >= 7000
   cudaStream_t stream = Stream<gpu>::GetStream(keys.stream_);
   thrust::device_ptr<KDType> key_iter = thrust::device_pointer_cast(keys.dptr_);
   thrust::device_ptr<VDType> value_iter = thrust::device_pointer_cast(values.dptr_);
   if (is_ascend) {
     thrust::stable_sort_by_key(
-#if CUDA_VERSION >= 7000
       thrust::cuda::par.on(stream),
-#endif
       key_iter, key_iter + keys.size(0), value_iter, thrust::less<KDType>());
   } else {
     thrust::stable_sort_by_key(
-#if CUDA_VERSION >= 7000
       thrust::cuda::par.on(stream),
-#endif
       key_iter, key_iter + keys.size(0), value_iter, thrust::greater<KDType>());
   }
+#else
+  LOG(FATAL) << "SortByKey is only supported for CUDA version >=7.0!";
+#endif
 }
 
 template<typename DType>

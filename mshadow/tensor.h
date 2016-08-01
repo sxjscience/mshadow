@@ -679,8 +679,8 @@ inline void SoftmaxGrad(Tensor<gpu, 2, DType> dst,
  */
 template<typename IndexType, typename DType>
 inline void AddTakeGrad(Tensor<cpu, 2, DType> dst,
-                                          const Tensor<cpu, 1, IndexType>& index,
-                                          const Tensor<cpu, 2, DType> &src);
+                        const Tensor<cpu, 1, IndexType>& index,
+                        const Tensor<cpu, 2, DType> &src);
 /*!
  * \brief CPU/GPU: Gradient accumulate of embedding matrix. dst += take_grad(src, index)
                    Called when the featuredim of src is much larger than the batchsize
@@ -690,8 +690,8 @@ inline void AddTakeGrad(Tensor<cpu, 2, DType> dst,
  */
 template<typename IndexType, typename DType>
 inline void AddTakeGrad(Tensor<gpu, 2, DType> dst,
-                                          const Tensor<gpu, 1, IndexType>& index,
-                                          const Tensor<gpu, 2, DType> &src);
+                        const Tensor<gpu, 1, IndexType>& index,
+                        const Tensor<gpu, 2, DType> &src);
 /*!
  * \brief CPU/GPU: Gradient accumulate of embedding matrix. dst += take_grad(src, index)
                    Called when the batchsize of src is larger than the featuredim
@@ -731,6 +731,7 @@ inline void SortByKey(Tensor<cpu, 1, KDType> keys, Tensor<cpu, 1, VDType> values
  * \brief CPU/GPU: Sort key-value pairs stored in separate places. (Stable sort is performed!)
  * \param keys the keys to sort
  * \param values the values that sorts w.r.t the key
+ * \param is_ascend whether to sort key in ascending order
  */
 template<typename KDType, typename VDType>
 inline void SortByKey(Tensor<gpu, 1, KDType> keys, Tensor<gpu, 1, VDType> values,
@@ -854,17 +855,32 @@ template<typename Saver, typename Reducer, int dimkeep,
 inline void MapReduceKeepHighDim(TRValue<R, gpu, 1, DType> *dst,
                                  const expr::Exp<E, DType, etype> &exp,
                                  DType scale = 1);
-
 /*!
  * \brief CPU/GPU: 1 dimension vector dot
  * \param dst Length 1 vector, used to hold the result.
  * \param lhs Left operand vector
- * \param rhs right operand vector
+ * \param rhs Right operand vector
  */
 template<typename Device, typename DType>
 inline void VectorDot(Tensor<Device, 1, DType> dst,
                       const Tensor<Device, 1, DType> &lhs,
                       const Tensor<Device, 1, DType> &rhs);
+/*!
+ * \brief CPU/GPU: dst = alpha * op(lhs) op(rhs) + beta * dst
+ * \param dst Length 3 tensor, used to hold the result
+ * \param lhs Left operand vector
+ * \param rhs Right operand vector
+ * \param alpha multiplier of op(lhs)op(rhs)
+ * \param beta multiplier of dst
+ * \param workspace Workspace for casting DType* to DType** (batched-view), must have size >= 3 * batch_size
+ */
+template<bool transpose_left, bool transpose_right, typename Device, typename DType>
+inline void BatchGEMM(Tensor<Device, 3, DType> dst,
+                      const Tensor<Device, 3, DType> &lhs,
+                      const Tensor<Device, 3, DType> &rhs,
+                      DType alpha,
+                      DType beta,
+                      Tensor<Device, 1, DType*> workspace);
 }  // namespace mshadow
 // include headers
 #include "./stream_gpu-inl.h"
