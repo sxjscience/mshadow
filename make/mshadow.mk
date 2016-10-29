@@ -8,10 +8,21 @@
 #  Add MSHADOW_NVCCFLAGS to the nvcc compile flags
 #----------------------------------------------------------------------------------------
 
-MSHADOW_CFLAGS = -msse3 -funroll-loops -Wno-unused-parameter -Wno-unknown-pragmas
+MSHADOW_CFLAGS = -funroll-loops -Wno-unused-parameter -Wno-unknown-pragmas
 MSHADOW_LDFLAGS = -lm
 MSHADOW_NVCCFLAGS =
 MKLROOT =
+
+ifndef USE_SSE
+	USE_SSE=1
+endif
+
+ifeq ($(USE_SSE), 1)
+	MSHADOW_CFLAGS += -msse3
+else
+	MSHADOW_CFLAGS += -DMSHADOW_USE_SSE=0
+endif
+
 ifeq ($(USE_CUDA), 0)
 	MSHADOW_CFLAGS += -DMSHADOW_USE_CUDA=0
 else
@@ -30,6 +41,7 @@ ifneq ($(USE_INTEL_PATH), NONE)
 		MSHADOW_LDFLAGS += -L$(USE_INTEL_PATH)/lib
 	else
 		MSHADOW_LDFLAGS += -L$(USE_INTEL_PATH)/mkl/lib/intel64
+		MSHADOW_LDFLAGS += -L$(USE_INTEL_PATH)/compiler/lib/intel64
 		MSHADOW_LDFLAGS += -L$(USE_INTEL_PATH)/lib/intel64
 	endif
 	MSHADOW_CFLAGS += -I$(USE_INTEL_PATH)/mkl/include
@@ -40,7 +52,7 @@ ifeq ($(USE_INTEL_PATH), NONE)
 else
 	MKLROOT = $(USE_INTEL_PATH)/mkl
 endif
-	MSHADOW_LDFLAGS +=  -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -liomp5 -ldl -lpthread -lm
+	MSHADOW_LDFLAGS += -L${MKLROOT}/../compiler/lib/intel64 -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a -Wl,--end-group -liomp5 -ldl -lpthread -lm
 else
 	MSHADOW_LDFLAGS += -lmkl_intel_lp64 -lmkl_intel_thread -lmkl_core -liomp5
 endif

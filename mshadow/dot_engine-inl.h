@@ -532,10 +532,10 @@ struct BLASEngine<gpu, float> {
 #if defined(__CUDACC__) && CUDA_VERSION >= 4010
     // Cast DType* to DType** using workspace as a buffer
     bool alloc_workspace = false;
-    if(workspace == NULL) {
+    if (workspace == NULL) {
       // Allocate the workspace if it's NULL.
       // TODO(sxjscience) Try to move the allocation inside Tensor, which is thread-safe.
-      cudaMalloc((void**)&workspace, 3 * batch_count * sizeof(float*));
+      cudaMalloc(reinterpret_cast<void**>(&workspace), 3 * batch_count * sizeof(float*));
       alloc_workspace = true;
     }
     GetBatchedView(workspace, const_cast<float*>(A), batch_count, m * k, stream);
@@ -640,10 +640,11 @@ struct BLASEngine<gpu, double> {
                                   double **workspace) {
 #if defined(__CUDACC__) && CUDA_VERSION >= 4010
     // Cast DType* to DType** using workspace as a buffer
-    if(workspace == NULL) {
+    bool alloc_workspace = false;
+    if (workspace == NULL) {
       // Allocate the workspace if it's NULL.
       // TODO(sxjscience) Try to move the allocation inside Tensor, which is thread-safe.
-      cudaMalloc((void**)&workspace, 3 * batch_count * sizeof(double*));
+      cudaMalloc(reinterpret_cast<void**>(&workspace), 3 * batch_count * sizeof(double*));
       alloc_workspace = true;
     }
     GetBatchedView(workspace, const_cast<double*>(A), batch_count, m * k, stream);
