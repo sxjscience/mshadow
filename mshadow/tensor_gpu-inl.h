@@ -209,6 +209,13 @@ inline void AddTakeGradLargeBatch(Tensor<gpu, 2, DType> dst,
                                   const Tensor<gpu, 2, DType> &src) {
   cuda::AddTakeGradLargeBatch(dst, sorted, index, src);
 }
+
+template<typename IndexType, typename DType>
+inline void IndexFill(Tensor<gpu, 2, DType> dst,
+                      const Tensor<gpu, 1, IndexType>& index,
+                      const Tensor<gpu, 2, DType> &src) {
+  cuda::IndexFill(dst, index, src);
+}
 }  // namespace mshadow
 #endif  // __CUDACC__
 #endif  // MSHADOW_TENSOR_GPU_INL_H_
