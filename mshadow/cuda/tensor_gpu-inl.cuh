@@ -631,9 +631,6 @@ inline void IndexFill(Tensor<gpu, 2, DType> dst,
   const int block_dim_x = 1 << kMemUnitBits;
   const int block_dim_y = 4;
   const int grid_dim_x = (src.size(0) + block_dim_y - 1) / block_dim_y;
-  LOG(INFO) << "block_dim_x:" << block_dim_x;
-  LOG(INFO) << "block_dim_y:" << block_dim_y;
-  LOG(INFO) << "grid_dim_x:" << grid_dim_x;
   dim3 dimBlock(block_dim_x, block_dim_y);
   dim3 dimGrid(grid_dim_x);
   CheckLaunchParam(dimGrid, dimBlock, "IndexFill");
