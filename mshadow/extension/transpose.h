@@ -127,9 +127,6 @@ struct TransposeIndicesExp:
     for (int i = 0; i < dimsrc; ++i) {
       src_in_dst_stride_[axes[i]] = dst_stride_[i];
     }
-    for (int i = 0; i < dimsrc; ++i) {
-      std::cout << "src_in_dst_stride_:" << i << " " << src_in_dst_stride_[i] << std::endl;
-    }
   }
 };
 
