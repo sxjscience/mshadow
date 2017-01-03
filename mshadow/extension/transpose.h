@@ -28,7 +28,7 @@ struct TransposeExExp:
   /*! \brief source expression */
   const SrcExp &src_;
   const Shape<dimsrc> axes_;
-  Shape<dimsrc> dst_in_src_stride_; // Holds the corresponding stride of the dst axes in src
+  Shape<dimsrc> dst_in_src_stride_;  // Holds the corresponding stride of the dst axes in src
   index_t src_stride_;
   /*! \brief constructor */
   explicit TransposeExExp(const SrcExp &src, Shape<dimsrc> axes) : src_(src), axes_(axes) {
@@ -97,10 +97,10 @@ template<typename SrcExp, typename DType, int dimsrc, int etype>
 struct TransposeIndicesExp:
       public Exp<TransposeIndicesExp<SrcExp, DType, dimsrc, etype>, DType, etype> {
   /*! \brief source expression */
-  const SrcExp &src_indices_; // Expression of the source indices
-  const Shape<dimsrc> axes_; // The transpose axes
-  Shape<dimsrc> src_in_dst_stride_; // Holds the corresponding stride of the source axes in dst
-  Shape<dimsrc> src_shape_; // Holds the corresponding stride of the source axes in dst
+  const SrcExp &src_indices_;  // Expression of the source indices
+  const Shape<dimsrc> axes_;  // The transpose axes
+  Shape<dimsrc> src_in_dst_stride_;  // Holds the corresponding stride of the source axes in dst
+  Shape<dimsrc> src_shape_;  // Holds the corresponding stride of the source axes in dst
   /*! \brief constructor */
   explicit TransposeIndicesExp(const SrcExp &src_indices,
                                Shape<dimsrc> src_shape,

@@ -51,7 +51,8 @@ struct Plan<RangeExp<DType>, DType> {
         repeat_(e.repeat_) {
   }
   MSHADOW_XINLINE DType Eval(index_t y, index_t x) const {
-    return static_cast<DType>(start_ + static_cast<float>((static_cast<int>(x) / repeat_)) *  step_);
+    return static_cast<DType>(start_ +
+                              static_cast<float>((static_cast<int>(x) / repeat_)) *  step_);
   }
 
  private:
