@@ -55,7 +55,7 @@ struct BroadcastWithAxisExp:
     } else {
       CHECK(dimdst > axis && axis >= 0) << "broadcast axis (keepdim) out of bound, " <<
         "axis must be between 0 and" << dimdst - 1 << ", given=" << axis << ".";
-      CHECK_EQ(src_shape[axis], 1) << "Size of the dimension of the broadcasting axis must be 1" <<
+      CHECK_EQ(src_shape[axis], 1U) << "Size of the dimension of the broadcasting axis must be 1" <<
         " when keepdim is on, src_shape[" << axis << "]=" << src_shape[axis] << ".";
       for (int i = 0; i <= axis - 1; ++i) {
         this->shape_[i] = src_shape[i];
@@ -137,7 +137,7 @@ struct BroadcastWithMultiAxesExp :
       CHECK(dimsrc > axes[i]) << "broadcast axis (keepdim) out of bound, " <<
         "all axes must be between 0 and" << dimsrc - 1 << ", given axes[" << i << "] = " << axes[i]
         << ".";
-      CHECK_EQ(src_shape[axes[i]], 1) << "Size of the dimension of the broadcasting axis must be 1"
+      CHECK_EQ(src_shape[axes[i]], 1U) << "Size of the dimension of the broadcasting axis must be 1"
         << ", src_shape[" << axes[i] << "]=" << src_shape[axes[i]] << ".";
       if (i < this->axesnum_ - 1) {
         CHECK(axes[i] < axes[i + 1]) << "The given axes must be in increasing order.";
@@ -193,13 +193,13 @@ const TShape &axes, const TShape &sizes) {
 template<typename SrcExp, typename DType, int etype, typename TShape>
 inline BroadcastWithMultiAxesExp<SrcExp, DType, ExpInfo<SrcExp>::kDim>
 broadcast_to(const Exp<SrcExp, DType, etype> &src, const TShape &target_shape) {
-  static const int dimsrc = ExpInfo<SrcExp>::kDim;
+  static const size_t dimsrc = ExpInfo<SrcExp>::kDim;
   CHECK_EQ(target_shape.ndim(), dimsrc);
   std::vector<index_t> axes_vec, sizes_vec;
   Shape<dimsrc> src_shape = ShapeCheck<dimsrc, SrcExp>::Check(src.self());
-  for (int i = 0; i < dimsrc; ++i) {
+  for (size_t i = 0; i < dimsrc; ++i) {
     if (src_shape[i] != target_shape[i]) {
-      CHECK_EQ(src_shape[i], 1) << "broadcasting axis must have size 1, received shape="
+      CHECK_EQ(src_shape[i], 1U) << "broadcasting axis must have size 1, received shape="
         << src_shape << " target_shape=" << target_shape;
       axes_vec.push_back(i);
       sizes_vec.push_back(target_shape[i]);

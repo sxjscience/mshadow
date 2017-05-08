@@ -28,7 +28,8 @@ inline void SetDevice<cpu>(int devid) {
 }
 template<>
 inline Stream<cpu> *NewStream<cpu>(bool create_blas_handle,
-                                   bool create_dnn_handle) {
+                                   bool create_dnn_handle,
+                                   int dev_id) {
   return new Stream<cpu>();
 }
 template<>
@@ -65,12 +66,6 @@ template<>
 inline void FreeHost_<gpu>(void *dptr) {
   MSHADOW_CUDA_CALL(cudaFreeHost(dptr));
 }
-#endif
-
-#ifdef _WIN32
-  typedef int64_t openmp_index_t;
-#else
-  typedef index_t openmp_index_t;
 #endif
 
 template<>
@@ -151,8 +146,11 @@ inline void MapPlan(TRValue<R, cpu, dim, DType> *dst,
                     const expr::Plan<E, DType> &plan) {
   Shape<2> shape = expr::ShapeCheck<dim, R>::Check(dst->self()).FlatTo2D();
   expr::Plan<R, DType> dplan = expr::MakePlan(dst->self());
+#if (MSHADOW_USE_CUDA == 0)
+  #pragma omp parallel for
+#endif
   // temp remove openmp, as default setting throttles CPU
-  for (index_t y = 0; y < shape[0]; ++y) {
+  for (openmp_index_t y = 0; y < shape[0]; ++y) {
     for (index_t x = 0; x < shape[1]; ++x) {
       // trust your compiler! -_- they will optimize it
       Saver::template Save<DType>(dplan.REval(y, x), plan.Eval(y, x));
@@ -213,11 +211,14 @@ inline void MapReduceKeepLowest(TRValue<R, cpu, 1, DType> *dst,
       ::Check(exp.self()).FlatTo2D();
   Shape<1> dshape = expr::ShapeCheck<1, R>::Check(dst->self());
   CHECK_EQ(eshape[1], dshape[0]) << "MapReduceKeepLowest::reduction dimension do not match";
-  CHECK_NE(eshape[0], 0) << "can not reduce over empty tensor";
+  CHECK_NE(eshape[0], 0U) << "can not reduce over empty tensor";
   // execution
   expr::Plan<R, DType> dplan = MakePlan(dst->self());
   expr::Plan<E, DType> splan = MakePlan(exp.self());
-  for (index_t x = 0; x < eshape[1]; ++x) {
+#if (MSHADOW_USE_CUDA == 0)
+  #pragma omp parallel for
+#endif
+  for (openmp_index_t x = 0; x < eshape[1]; ++x) {
     DType res = splan.Eval(0, x);
     for (index_t y = 1; y < eshape[0]; ++y) {
       Reducer::Reduce(res, splan.Eval(y, x));
@@ -247,7 +248,10 @@ inline void MapReduceKeepHighDim(TRValue<R, cpu, 1, DType> *dst,
   // execution
   expr::Plan<R, DType> dplan = MakePlan(dst->self());
   expr::Plan<E, DType> splan = MakePlan(exp.self());
-  for (index_t c = 0; c < pshape[1]; ++c) {
+#if (MSHADOW_USE_CUDA == 0)
+  #pragma omp parallel for
+#endif
+  for (openmp_index_t c = 0; c < pshape[1]; ++c) {
     DType res; Reducer::SetInitValue(res);
     for (index_t n = 0; n < pshape[0]; ++n) {
       DType tres; Reducer::SetInitValue(tres);
@@ -401,8 +405,12 @@ template<typename IndexType, typename DType>
 inline void AddTakeGrad(Tensor<cpu, 2, DType> dst,
                         const Tensor<cpu, 1, IndexType>& index,
                         const Tensor<cpu, 2, DType> &src) {
+  const int K = dst.shape_[0];
   for (index_t y = 0; y < index.size(0); ++y) {
-    dst[index[y]] += src[y];
+    int j = index[y];
+    if (j <= 0) j = 0;
+    else if (j >= K) j = K - 1;
+    dst[j] += src[y];
   }
 }
 
@@ -472,7 +480,7 @@ inline void VectorDot(Tensor<Device, 1, DType> dst,
                       const Tensor<Device, 1, DType> &rhs) {
   CHECK_EQ(lhs.size(0), rhs.size(0))
       << "VectorDot: Shape mismatch";
-  CHECK_EQ(dst.size(0), 1)
+  CHECK_EQ(dst.size(0), 1U)
       << "VectorDot: expect dst to be scalar";
   expr::BLASEngine<Device, DType>::SetStream(lhs.stream_);
   mshadow::expr::BLASEngine<Device, DType>::dot(

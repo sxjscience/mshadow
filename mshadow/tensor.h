@@ -248,6 +248,43 @@ MSHADOW_XINLINE Shape<5> Shape5(index_t s0, index_t s1, index_t s2,
 * \param dst_layout target layout
 * \return shape in target layout
 */
+inline Shape<3> ConvertLayout(const Shape<3>& src, int src_layout, int dst_layout) {
+  Shape<3> dst;
+  switch (src_layout) {
+  case kNCW:
+    dst = src;
+    break;
+  case kNWC:
+    dst[0] = src[0];
+    dst[1] = src[2];
+    dst[2] = src[1];
+    break;
+  default:
+    LOG(FATAL) << "Invalid layout for 3d shape " << src_layout;
+  }
+  switch (dst_layout) {
+  case kNCW:
+    return dst;
+  case kNWC:
+    {
+      index_t tmp = dst[1];
+      dst[1] = dst[2];
+      dst[2] = tmp;
+    }
+    break;
+  default:
+    LOG(FATAL) << "Invalid layout for 3d shape " << src_layout;
+  }
+  return dst;
+}
+
+/*!
+* \brief Convert shape in src_layout to shape in dst_layout
+* \param src original shape
+* \param src_layout layout of original shape
+* \param dst_layout target layout
+* \return shape in target layout
+*/
 inline Shape<4> ConvertLayout(const Shape<4>& src, int src_layout, int dst_layout) {
   Shape<4> dst;
   switch (src_layout) {
@@ -604,16 +641,21 @@ inline void SetDevice(int devid);
  * \brief create a new stream from system
  * \param create_blas_handle whether create blas handle in stream
  * \param create_dnn_handle whether create cudnn handle in stream
+ * \param dev_id device id
  * \return a pointer to the created stream
  * \tparam Device the device type
  */
 template<typename Device>
 inline Stream<Device> *NewStream(bool create_blas_handle,
-                                 bool create_dnn_handle);
-/*! \brief default behavior: create cublas handle */
+                                 bool create_dnn_handle,
+                                 int dev_id = -1);
+/*! \brief default behavior: create cublas handle 
+ *  \param dev_id device id
+ *  \return a pointer to the created stream
+ */
 template<typename Device>
-inline Stream<Device> *NewStream() {
-  return NewStream<Device>(true, false);
+inline Stream<Device> *NewStream(int dev_id) {
+  return NewStream<Device>(true, false, dev_id);
 }
 /*!
  * \brief delete the computing stream
