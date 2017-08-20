@@ -16,7 +16,11 @@
     /*! \brief __half2float_warp */
     __host__ __device__ float __half2float_warp(const volatile __half& h) { /* NOLINT(*) */
       __half val;
+#if CUDA_VERSION >= 9000
+      val = const_cast<__half&>(h);
+#else
       val.x = h.x;
+#endif
       return __half2float(val);
     }
   #endif
@@ -264,6 +268,7 @@ MSHADOW_HALF_OPERATOR(bool, >=)
 MSHADOW_HALF_OPERATOR(bool, <=)
 
 #define MSHADOW_HALF_MIN mshadow::half::half_t::Binary(0x0400);
+#define MSHADOW_HALF_MAX mshadow::half::half_t::Binary(0x7AFF);
 }  // namespace half
 }  // namespace mshadow
 #endif  // MSHADOW_HALF_H_

@@ -13,6 +13,14 @@ MSHADOW_LDFLAGS = -lm
 MSHADOW_NVCCFLAGS =
 
 
+# atlas blas library has different name on CentOS
+OS := $(shell cat /etc/system-release 2>/dev/null)
+ifeq ($(findstring CentOS,$(OS)), CentOS)
+  ATLAS_LDFLAGS := -lsatlas -L/usr/lib64/atlas
+else
+  ATLAS_LDFLAGS := -lcblas
+endif
+
 ifndef USE_SSE
 	USE_SSE=1
 endif
@@ -26,7 +34,7 @@ endif
 ifeq ($(USE_CUDA), 0)
 	MSHADOW_CFLAGS += -DMSHADOW_USE_CUDA=0
 else
-	MSHADOW_LDFLAGS += -lcudart -lcublas -lcurand
+	MSHADOW_LDFLAGS += -lcudart -lcublas -lcurand -lcusolver
 endif
 ifneq ($(USE_CUDA_PATH), NONE)
 	MSHADOW_CFLAGS += -I$(USE_CUDA_PATH)/include
@@ -74,7 +82,7 @@ ifeq ($(USE_BLAS), openblas)
 else ifeq ($(USE_BLAS), perfblas)
 	MSHADOW_LDFLAGS += -lperfblas
 else ifeq ($(USE_BLAS), atlas)
-	MSHADOW_LDFLAGS += -lcblas
+	MSHADOW_LDFLAGS += $(ATLAS_LDFLAGS)
 else ifeq ($(USE_BLAS), blas)
 	MSHADOW_LDFLAGS += -lblas
 else ifeq ($(USE_BLAS), apple)
@@ -117,6 +125,7 @@ else
 	MSHADOW_CFLAGS+= -DMSHADOW_DIST_PS=0
 endif
 
-# Set MSHADOW_USE_PASCAL to one to enable nvidia pascal gpu features.
-# Like cublasHgemm
+# MSHADOW_USE_PASCAL=1 used to enable true-fp16 gemms.  Now, mshadow
+# only uses pseudo-fp16 gemms, so this flag will be removed after
+# dependent projects no longer reference it.
 MSHADOW_CFLAGS += -DMSHADOW_USE_PASCAL=0

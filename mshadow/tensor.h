@@ -639,7 +639,7 @@ template<typename Device>
 inline void SetDevice(int devid);
 /*!
  * \brief create a new stream from system
- * \param create_blas_handle whether create blas handle in stream
+ * \param create_blas_handle whether create blas & cusolver handle in stream
  * \param create_dnn_handle whether create cudnn handle in stream
  * \param dev_id device id
  * \return a pointer to the created stream
@@ -649,7 +649,7 @@ template<typename Device>
 inline Stream<Device> *NewStream(bool create_blas_handle,
                                  bool create_dnn_handle,
                                  int dev_id = -1);
-/*! \brief default behavior: create cublas handle 
+/*! \brief default behavior: create cublas handle
  *  \param dev_id device id
  *  \return a pointer to the created stream
  */
@@ -1055,7 +1055,6 @@ inline void BatchGEMM(Tensor<Device, 3, DType> dst,
 #include "./tensor_gpu-inl.h"
 #include "./io.h"
 #include "./tensor_container.h"
-#include "./tensor_blob.h"
 #include "./random.h"
 // add definition of scalar related operators
 #ifdef MSHADOW_SCALAR_

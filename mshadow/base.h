@@ -102,6 +102,13 @@ typedef unsigned __int64 uint64_t;
 #endif
 
 /*!
+ * \brief use CUSOLVER support
+ */
+#ifndef MSHADOW_USE_CUSOLVER
+  #define MSHADOW_USE_CUSOLVER MSHADOW_USE_CUDA
+#endif
+
+/*!
  * \brief seems CUDAARCH is deprecated in future NVCC
  * set this to 1 if you want to use CUDA version smaller than 2.0
  */
@@ -150,6 +157,10 @@ extern "C" {
 
 #if MSHADOW_USE_CUDNN == 1
   #include <cudnn.h>
+#endif
+
+#if MSHADOW_USE_CUSOLVER == 1
+  #include <cusolverDn.h>
 #endif
 
 #if MSHADOW_USE_NVML
@@ -268,7 +279,8 @@ enum TypeFlag {
   kFloat16 = 2,
   kUint8 = 3,
   kInt32 = 4,
-  kInt8  = 5
+  kInt8  = 5,
+  kInt64 = 6,
 };
 
 template<typename DType>
@@ -279,7 +291,9 @@ struct DataType<float> {
   static const int kFlag = kFloat32;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_32F;
+#endif
 #if MSHADOW_USE_CUDNN
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_FLOAT;
   typedef float ScaleType;
@@ -291,7 +305,9 @@ struct DataType<double> {
   static const int kFlag = kFloat64;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_64F;
+#endif
 #if MSHADOW_USE_CUDNN
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_DOUBLE;
   typedef double ScaleType;
@@ -303,7 +319,9 @@ struct DataType<half::half_t> {
   static const int kFlag = kFloat16;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_16F;
+#endif
 #if MSHADOW_USE_CUDNN
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_HALF;
   typedef float ScaleType;
@@ -320,7 +338,9 @@ struct DataType<uint8_t> {
   static const int kFlag = kUint8;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_8U;
+#endif
 #if (MSHADOW_USE_CUDNN == 1 && CUDNN_MAJOR >= 6)
   // no uint8 in cudnn for now
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_INT8;
@@ -333,7 +353,9 @@ struct DataType<int8_t> {
   static const int kFlag = kInt8;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_8I;
+#endif
 #if (MSHADOW_USE_CUDNN == 1 && CUDNN_MAJOR >= 6)
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_INT8;
   typedef int8_t ScaleType;
@@ -345,12 +367,19 @@ struct DataType<int32_t> {
   static const int kFlag = kInt32;
   static const int kLanes = 1;
 #if MSHADOW_USE_CUDA
+#if (CUDA_VERSION >= 8000)
   static const cudaDataType_t kCudaFlag = CUDA_R_32I;
+#endif
 #if (MSHADOW_USE_CUDNN == 1 && CUDNN_MAJOR >= 6)
   static const cudnnDataType_t kCudnnFlag = CUDNN_DATA_INT32;
   typedef int32_t ScaleType;
 #endif
 #endif
+};
+template<>
+struct DataType<int64_t> {
+  static const int kFlag = kInt64;
+  static const int kLanes = 1;
 };
 
 /*! \brief type enum value for default real type */
@@ -580,6 +609,11 @@ template<>
 MSHADOW_XINLINE int MinValue<int32_t>(void) {
   return INT_MIN;
 }
+/*! \brief minimum value of int64_t */
+template<>
+MSHADOW_XINLINE int64_t MinValue<int64_t>(void) {
+  return LLONG_MIN;
+}
 
 /*!
  * \brief maximum value of certain types
@@ -597,6 +631,11 @@ template<>
 MSHADOW_XINLINE double MaxValue<double>(void) {
   return DBL_MAX;
 }
+/*! \brief maximum value of half */
+template<>
+MSHADOW_XINLINE half::half_t MaxValue<half::half_t>(void) {
+  return MSHADOW_HALF_MAX;
+}
 /*! \brief maximum value of uint8_t */
 template<>
 MSHADOW_XINLINE uint8_t MaxValue<uint8_t>(void) {
@@ -611,6 +650,11 @@ MSHADOW_XINLINE int8_t MaxValue<int8_t>(void) {
 template<>
 MSHADOW_XINLINE int MaxValue<int32_t>(void) {
   return INT_MAX;
+}
+/*! \brief maximum value of int64_t */
+template<>
+MSHADOW_XINLINE int64_t MaxValue<int64_t>(void) {
+  return LLONG_MAX;
 }
 }  // namespace limits
 
@@ -690,7 +734,7 @@ struct minimum {
    */
   template<typename DType>
   MSHADOW_XINLINE static void SetInitValue(DType &initv) { // NOLINT(*)
-    initv = -limits::MinValue<DType>();
+    initv = limits::MaxValue<DType>();
   }
 };
 }  // namespace red
@@ -733,6 +777,12 @@ struct minimum {
       {__VA_ARGS__}                                 \
     }                                               \
     break;                                          \
+  case mshadow::kInt64:                             \
+    {                                               \
+      typedef int64_t DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
   default:                                          \
     LOG(FATAL) << "Unknown type enum " << type;     \
   }
@@ -769,8 +819,33 @@ struct minimum {
       {__VA_ARGS__}                                       \
     }                                                     \
     break;                                                \
+  case mshadow::kInt64:                                   \
+    {                                                     \
+      typedef int64_t DType;                              \
+      {__VA_ARGS__}                                       \
+    }                                                     \
+    break;                                                \
   default:                                                \
     LOG(FATAL) << "Unknown type enum " << type;           \
+  }
+
+#define MSHADOW_SGL_DBL_TYPE_SWITCH(type, DType, ...)  \
+  switch (type) {                                      \
+  case mshadow::kFloat32:                              \
+    {                                                  \
+      typedef float DType;                             \
+      {__VA_ARGS__}                                    \
+    }                                                  \
+    break;                                             \
+  case mshadow::kFloat64:                              \
+    {                                                  \
+      typedef double DType;                            \
+      {__VA_ARGS__}                                    \
+    }                                                  \
+    break;                                             \
+  default:                                             \
+    LOG(FATAL) << "This operation only supports "      \
+                  "32- and 64-bit floating point";     \
   }
 
 #define MSHADOW_REAL_TYPE_SWITCH(type, DType, ...)  \
@@ -804,6 +879,10 @@ struct minimum {
   case mshadow::kInt32:                             \
     LOG(FATAL) << "This operation only support "    \
                   "floating point types, not int32";\
+    break;                                          \
+  case mshadow::kInt64:                             \
+    LOG(FATAL) << "This operation only support "    \
+                  "floating point types, not int64";\
     break;                                          \
   default:                                          \
     LOG(FATAL) << "Unknown type enum " << type;     \
@@ -844,6 +923,10 @@ struct minimum {
     LOG(FATAL) << "This operation only support "    \
                   "floating point types, not int32";\
     break;                                          \
+  case mshadow::kInt64:                             \
+    LOG(FATAL) << "This operation only support "    \
+                  "floating point types, not int64";\
+    break;                                          \
   default:                                          \
     LOG(FATAL) << "Unknown type enum " << type$;    \
   }
@@ -876,6 +959,22 @@ struct minimum {
     break;                                          \
   default:                                          \
     LOG(FATAL) << "Unknown layout enum " << layout; \
+  }
+
+/*!
+ * \brief Only supports int64 index type for aux_data
+ * in NDArray class fow now.
+ */
+#define MSHADOW_IDX_TYPE_SWITCH(type, DType, ...)   \
+  switch (type) {                                   \
+  case mshadow::kInt64:                             \
+    {                                               \
+      typedef int64_t DType;                        \
+      {__VA_ARGS__}                                 \
+    }                                               \
+    break;                                          \
+  default:                                          \
+    LOG(FATAL) << "Unknown type enum " << type;     \
   }
 
 /*! \brief get data type size from type enum */
