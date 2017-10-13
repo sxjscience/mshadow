@@ -299,6 +299,7 @@ inline Shape<4> ConvertLayout(const Shape<4>& src, int src_layout, int dst_layou
     break;
   default:
     LOG(FATAL) << "Invalid layout for 4d shape " << src_layout;
+    dst = src;  // fixes compiler warning
   }
   Shape<4> dst2;
   switch (dst_layout) {
@@ -312,6 +313,7 @@ inline Shape<4> ConvertLayout(const Shape<4>& src, int src_layout, int dst_layou
     break;
   default:
     LOG(FATAL) << "Invalid layout for 4d shape " << src_layout;
+    dst2 = src;  // fixes compiler warning
   }
   return dst2;
 }
@@ -357,20 +359,20 @@ inline Shape<5> ConvertLayout(const Shape<5>& src, int src_layout, int dst_layou
 }
 
 /*!
- * \brief computaion stream structure, used for asynchronize computation
+ * \brief computaion stream structure, used for asynchronous computations
  */
 template<typename Device>
 struct Stream {
   // this is only a dummy implementation for CPU
   // for GPU, the actual implementation will be specialized in tensor_gpu-inl.h
   /*!
-   * \brief wait for all the computation associated
+   * \brief wait for all the computations associated
    *  with this stream to complete
    */
   inline void Wait(void) {}
   /*!
    * \brief query whether the the stream is idle
-   * \return true if the stream is idle and all the job have been completed
+   * \return true if the stream is idle and all the jobs have been completed
    */
   inline bool CheckIdle(void) {
     return true;
@@ -804,7 +806,7 @@ inline void SoftmaxGrad(Tensor<cpu, 2, DType> dst,
  * \param label label info
  */
 template<typename DType>
-inline void SoftmaxGrad(Tensor<gpu, 2, DType> dst,
+inline void SoftmaxGrad(const Tensor<gpu, 2, DType> &dst,
                         const Tensor<gpu, 2, DType> &src,
                         const Tensor<gpu, 1, DType> &label);
 /*!
